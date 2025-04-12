@@ -12,22 +12,7 @@ process GATK_HAPLOTYPECALLER {
     tuple val(meta), val(interval), path("${meta.id}.${interval}.g.vcf.gz"), path("${meta.id}.${interval}.g.vcf.gz.tbi"), emit: gvcfs_interval
 
     script:
-    // Create symlinks to all reference index files
-    def ref_dir = new File(reference).getParent()
-    def ref_name = reference.getName()
-    def ref_base = ref_name.take(ref_name.lastIndexOf('.'))
-    
     """
-    # Create symlinks to all reference index files
-    for idx_file in ${ref_dir}/${ref_name}.*; do
-        ln -sf \$idx_file ./\$(basename \$idx_file)
-    done
-    
-    # Special case for .dict file
-    if [ -f "${ref_dir}/${ref_base}.dict" ]; then
-        ln -sf "${ref_dir}/${ref_base}.dict" ./genome.dict
-    fi
-    
     # Create temporary directory for GATK within task directory
     mkdir -p gatk_tmp
     

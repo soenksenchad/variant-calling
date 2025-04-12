@@ -47,40 +47,14 @@ workflow {
     
     // Reference genome files (assumes pre-indexed)
     def ref_file = file(params.reference_genome, checkIfExists: true)
-    def ref_base = ref_file.getBaseName()
-    def ref_dir = ref_file.getParent()
-    def ref_name = ref_file.getName()
     
-    // Get full path for reference
-    def ref_path = ref_file.toAbsolutePath().toString()
-    
-    // Expected index file paths
-    def dict_file = file("${ref_dir}/${ref_base}.dict")
-    def fai_file = file("${ref_dir}/${ref_name}.fai")
-    
-    // Check if index files exist
-    if (!dict_file.exists()) {
-        log.error "Reference dictionary file not found: ${dict_file}"
-        log.error "Please index your reference genome before running the pipeline."
-        log.error "See README.md for instructions on how to index your reference genome."
-        exit 1
-    }
-    
-    if (!fai_file.exists()) {
-        log.error "Reference FASTA index file not found: ${fai_file}"
-        log.error "Please index your reference genome before running the pipeline."
-        log.error "See README.md for instructions on how to index your reference genome."
-        exit 1
-    }
-    
-    // Create channels for reference files
+    // Create simple reference channel with just the reference file
     ch_ref_fasta = Channel.value(ref_file)
     
     // --- Step 1: Read Trimming ---
     FASTP_TRIM(ch_reads)
 
     // --- Step 2: Alignment ---
-    // For BWA-MEM2, you need the reference file staged in the working directory
     ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_fasta)
     BWAMEM2_ALIGN(ch_align_input)
 
@@ -88,7 +62,6 @@ workflow {
     SAMTOOLS_PROCESS(BWAMEM2_ALIGN.out.bam_files)
 
     // --- Step 4: Haplotype Calling (per sample, per interval) ---
-    // First combine with intervals, then with reference
     ch_haplotype_input = SAMTOOLS_PROCESS.out.processed_bam
                              .combine(ch_intervals)   // [meta, bam, interval]
                              .combine(ch_ref_fasta)   // [meta, bam, interval, ref]
@@ -114,7 +87,6 @@ workflow {
     CREATE_SAMPLE_MAP(ch_grouped_gvcf_info) // Emits: [interval, map_file_path]
 
     // --- Step 6: Joint Genotyping (per interval) ---
-    // We need to modify how we pass the reference to joint genotyping
     ch_joint_genotype_input = CREATE_SAMPLE_MAP.out.sample_map
                                  .combine(ch_ref_fasta)  // [interval, map_file, ref_file]
     

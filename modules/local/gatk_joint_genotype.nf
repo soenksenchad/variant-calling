@@ -11,22 +11,7 @@ process GATK_JOINT_GENOTYPE {
     tuple val(interval), path("${interval}.filtered.vcf.gz"), path("${interval}.filtered.vcf.gz.tbi"), emit: filtered_vcf_interval
 
     script:
-    // Create symlinks to all reference index files
-    def ref_dir = new File(reference).getParent()
-    def ref_name = reference.getName()
-    def ref_base = ref_name.take(ref_name.lastIndexOf('.'))
-    
     """
-    # Create symlinks to all reference index files
-    for idx_file in ${ref_dir}/${ref_name}.*; do
-        ln -sf \$idx_file ./\$(basename \$idx_file)
-    done
-    
-    # Special case for .dict file
-    if [ -f "${ref_dir}/${ref_base}.dict" ]; then
-        ln -sf "${ref_dir}/${ref_base}.dict" ./genome.dict
-    fi
-    
     # Create a unique workspace for this interval
     WORKSPACE="genomicsdb_${interval}"
     
