@@ -45,7 +45,7 @@ workflow {
     ch_ref_indexed = REFERENCE_INDEX.out.indexed_ref // Emits [ref, dict, fai]
 
     // --- Step 2: Read Trimming ---
-    FASTP_TRIM(ch_reads.map{ meta, r1, r2 -> tuple(meta.id, [r1, r2]) }) // Input: [sample_id, [r1, r2]]
+    FASTP_TRIM(ch_reads.map{ meta, r1, r2 -> tuple(meta.sample_id, [r1, r2]) }) // Input: [sample_id, [r1, r2]]
 
     // --- Step 3: Alignment ---
     ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_indexed) // Input: [sample_id, [r1,r2], [ref, dict, fai]]
