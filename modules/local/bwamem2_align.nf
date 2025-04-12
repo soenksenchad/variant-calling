@@ -12,9 +12,12 @@ process BWAMEM2_ALIGN {
     tuple val(meta), path("${meta.id}.aligned.bam"), emit: bam_files
 
     script:
+    // Get the absolute path to the reference
+    def ref_path = reference.toAbsolutePath()
+    
     """
     # Align with bwa-mem2
-    bwa-mem2 mem -t ${task.cpus} -M ${reference} ${reads[0]} ${reads[1]} | \
+    bwa-mem2 mem -t ${task.cpus} -M ${ref_path} ${reads[0]} ${reads[1]} | \
     samtools view -bS - > ${meta.id}.bam
 
     # Sort BAM file

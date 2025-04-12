@@ -11,6 +11,9 @@ process GATK_JOINT_GENOTYPE {
     tuple val(interval), path("${interval}.filtered.vcf.gz"), path("${interval}.filtered.vcf.gz.tbi"), emit: filtered_vcf_interval
 
     script:
+    // Get the absolute path to the reference
+    def ref_path = reference.toAbsolutePath()
+    
     """
     # Create a unique workspace for this interval
     WORKSPACE="genomicsdb_${interval}"
@@ -26,7 +29,7 @@ process GATK_JOINT_GENOTYPE {
 
     # Run joint genotyping on the interval
     gatk --java-options "-Xmx${task.memory.toGiga()}g" GenotypeGVCFs \
-        -R ${reference} \
+        -R ${ref_path} \
         -V gendb://\$WORKSPACE \
         -O ${interval}.vcf.gz \
         -L ${interval} \
@@ -34,7 +37,7 @@ process GATK_JOINT_GENOTYPE {
 
     # Apply variant filtration
     gatk --java-options "-Xmx${task.memory.toGiga()}g" VariantFiltration \
-        -R ${reference} \
+        -R ${ref_path} \
         -V ${interval}.vcf.gz \
         -O ${interval}.filtered.vcf.gz \
         --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \
