@@ -12,8 +12,6 @@ process BWAMEM2_ALIGN {
     tuple val(meta), path("${meta.id}.aligned.bam"), emit: bam_files
 
     script:
-    // Use double quotes to allow Nextflow param interpolation
-    // Escape shell variables ($) and awk fields (\$)
     """
     #!/bin/bash
     set -e -o pipefail
@@ -59,24 +57,23 @@ process BWAMEM2_ALIGN {
     echo "Contents of working directory after symlinks:"
     ls -la > workdir_contents_after.txt
     
-    echo "Reading read group info from ${rg_info}..."
-    # Escape $ for awk fields
-    RG_ID=\$(awk -F'\t' '{print $1}' ${rg_info} | sed 's/ID://')
-    RG_SM=\$(awk -F'\t' '{print $2}' ${rg_info} | sed 's/SM://')
-    RG_LB=\$(awk -F'\t' '{print $3}' ${rg_info} | sed 's/LB://')
-    RG_PU=\$(awk -F'\t' '{print $4}' ${rg_info} | sed 's/PU://')
-    RG_PL=\$(awk -F'\t' '{print $5}' ${rg_info} | sed 's/PL://')
+    # Function to extract read group information
+    get_read_group() {
+        local fastq=$1
+        local sample_name=$2
+        
+        # Extract header information
+        local header=$(zcat "${fastq}" | head -n 1)
+        local flowcell=$(echo "${header}" | awk -F: '{print $3}')
+        local lane=$(echo "${header}" | awk -F: '{print $4}')
+        local barcode=$(echo "${header}" | awk -F: '{print $10}')
+        
+        # Construct read group string
+        echo "@RG\tID:${sample_name}.${flowcell}.${lane}\tSM:${sample_name}\tLB:Lib2\tPU:${flowcell}.${lane}.${barcode}\tPL:Illumina"
+    }
 
-    # Check if variables were extracted
-    if [ -z "$RG_ID" ] || [ -z "$RG_SM" ] || [ -z "$RG_LB" ] || [ -z "$RG_PU" ] || [ -z "$RG_PL" ]; then
-        echo "Error: Failed to extract one or more read group fields from ${rg_info}"
-        echo "Content of ${rg_info}:"
-        cat ${rg_info}
-        exit 1
-    fi
-    
-    # Construct read group string using printf and shell variables
-    RG_STRING=\$(printf '@RG\tID:%s\tSM:%s\tLB:%s\tPL:%s\tPU:%s' "$RG_ID" "$RG_SM" "$RG_LB" "$RG_PL" "$RG_PU")
+    # Get read group information
+    RG_STRING=$(get_read_group "${reads[0]}" "${meta.id}")
     echo "Constructed RG string: $RG_STRING"
 
     echo "Running BWA-MEM2 alignment..."
