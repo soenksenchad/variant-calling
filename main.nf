@@ -4,9 +4,9 @@ nextflow.enable.dsl=2
 
 // Define Parameters
 params.reads = "samples.txt" // Input samplesheet (sample,fastq_1,fastq_2)
-params.ref_genome = "ref/genome.fasta.gz" // Reference genome
-params.ref_genome_dict = "ref/genome.dict" // Reference dictionary (will be created if not exists)
-params.ref_genome_fasta_index = "ref/genome.fasta.fai" // Reference FASTA index (will be created if not exists)
+params.reference_genome = "ref/genome.fasta.gz" // Reference genome (will be overridden by nextflow.config)
+params.ref_genome_dict = "${params.reference_genome.toString().replaceFirst(/\.gz$/, '')}.dict" // Reference dictionary
+params.ref_genome_fasta_index = "${params.reference_genome.toString().replaceFirst(/\.gz$/, '')}.fai" // Reference FASTA index
 params.intervals_file = "intervals_chromo_only_nopos.list" // File listing intervals (1-10)
 params.outdir = "./results"
 params.publish_dir_mode = 'copy' // Or 'link', 'rellink', etc.
@@ -15,10 +15,10 @@ params.publish_dir_mode = 'copy' // Or 'link', 'rellink', etc.
 log.info """\
          V A R I A N T - C A L L I N G   P I P E L I N E
          ================================================
-         reads         : ${params.reads}
-         ref_genome    : ${params.ref_genome}
-         intervals     : ${params.intervals_file}
-         outdir        : ${params.outdir}
+         reads              : ${params.reads}
+         reference_genome   : ${params.reference_genome}
+         intervals          : ${params.intervals_file}
+         outdir             : ${params.outdir}
          ------------------------------------------------
          """
          .stripIndent()
@@ -45,7 +45,7 @@ workflow {
             [ meta, file(row.read1), file(row.read2) ]
         }
     ch_intervals = Channel.fromPath(params.intervals_file).splitText().map { it.trim() }.filter { it } // Emits '1', '2', ... '10'
-    ch_ref_tuple = Channel.of(file(params.ref_genome), file(params.ref_genome_dict), file(params.ref_genome_fasta_index))
+    ch_ref_tuple = Channel.of(file(params.reference_genome), file(params.ref_genome_dict), file(params.ref_genome_fasta_index))
 
     // --- Step 1: Reference Indexing ---
     REFERENCE_INDEX(ch_ref_tuple)
