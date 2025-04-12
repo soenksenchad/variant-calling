@@ -229,3 +229,51 @@ This pipeline is licensed under the MIT License.
 ## Contact
 
 For questions or issues, please create a GitHub issue or contact the author.
+
+## Troubleshooting
+
+### Reference Genome Index Issues
+
+If you encounter errors related to reference genome index files:
+
+- **BWA-MEM2 Error: Unable to open genome.fa.bwt.2bit.64**: Ensure all BWA-MEM2 index files (`.amb`, `.ann`, `.bwt.2bit.64`, `.pac`, `.0123`) exist in the reference directory.
+- **GATK Error**: Verify `.fai` and `.dict` files are present.
+- Check `workdir_contents_before.txt` and `workdir_contents_after.txt` in the failed work directory for debugging information.
+
+### Complete List of Required Index Files
+
+The pipeline requires these index files alongside your reference FASTA:
+
+| File Extension | Created By | Purpose |
+|----------------|------------|---------|
+| `.amb` | BWA-MEM2 index | BWA-MEM2 alignment |
+| `.ann` | BWA-MEM2 index | BWA-MEM2 alignment |
+| `.bwt` | BWA-MEM2 index | BWA-MEM2 alignment |
+| `.bwt.2bit.64` | BWA-MEM2 index | BWA-MEM2 alignment |
+| `.pac` | BWA-MEM2 index | BWA-MEM2 alignment |
+| `.0123` | BWA-MEM2 index | BWA-MEM2 alignment |
+| `.sa` | BWA-MEM2 index | BWA-MEM2 alignment |
+| `.fai` | samtools faidx | GATK and samtools |
+| `.dict` | GATK CreateSequenceDictionary | GATK tools |
+
+### Common Errors and Solutions
+
+- **Error: No files matched pattern cp "$REF_DIR"/"$REF_NAME"***: The reference directory doesn't contain the expected index files.
+- **Error: Failed to create symlink for genome.fa.$ext**: The index file doesn't exist or cannot be accessed.
+- **OOM (Out of Memory) Errors**: Increase memory allocation in nextflow.config for the affected process.
+
+### Job Debugging
+
+For failed processes, you can examine the work directory and logs:
+
+```bash
+# Find the work directory of a failed process
+grep -A1 "Process.*terminated" .nextflow.log
+
+# Examine output and error files
+cd /path/to/work/directory
+cat .command.out
+cat .command.err
+cat workdir_contents_before.txt
+cat workdir_contents_after.txt
+```

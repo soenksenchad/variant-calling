@@ -12,19 +12,33 @@ process GATK_JOINT_GENOTYPE {
 
     script:
     """
-    # Copy all reference index files to work directory
+    # List current directory for debugging
+    echo "Contents of working directory before symlinks:"
+    ls -la > workdir_contents_before.txt
+    
+    # Define reference path variables
     REF_PATH="${params.reference_genome}"
     REF_DIR=\$(dirname "\$REF_PATH")
     REF_NAME=\$(basename "\$REF_PATH")
-    
-    # Copy all index files with *.ext pattern
-    cp "\$REF_DIR"/"\$REF_NAME".* ./
-    
-    # Copy dict file if it exists
     REF_BASE=\$(echo "\$REF_NAME" | sed 's/\\.[^.]*\$//')
-    if [ -f "\$REF_DIR/\$REF_BASE.dict" ]; then
-        cp "\$REF_DIR/\$REF_BASE.dict" ./genome.dict
+    
+    # Create symlink for .fai index
+    ln -s "\${REF_PATH}.fai" "genome.fa.fai"
+    if [ ! -e "genome.fa.fai" ]; then
+        echo "Error: genome.fa.fai not found. Check if \${REF_PATH}.fai exists."
+        exit 1
     fi
+    
+    # Create symlink for .dict file
+    ln -s "\${REF_DIR}/\${REF_BASE}.dict" "genome.dict"
+    if [ ! -e "genome.dict" ]; then
+        echo "Error: genome.dict not found. Check if \${REF_DIR}/\${REF_BASE}.dict exists."
+        exit 1
+    fi
+    
+    # List current directory after linking for debugging
+    echo "Contents of working directory after symlinks:"
+    ls -la > workdir_contents_after.txt
     
     # Create a unique workspace for this interval
     WORKSPACE="genomicsdb_${interval}"

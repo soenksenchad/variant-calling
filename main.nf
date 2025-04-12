@@ -47,7 +47,29 @@ workflow {
     
     // Reference genome files (assumes pre-indexed)
     def ref_file = file(params.reference_genome, checkIfExists: true)
-    
+    def ref_dir = ref_file.parent
+    def ref_name = ref_file.name
+    def ref_base = ref_name.take(ref_name.lastIndexOf('.'))
+
+    // Validate reference index files exist
+    def required_extensions = ['.amb', '.ann', '.bwt.2bit.64', '.pac', '.0123', '.fai']
+    required_extensions.each { ext ->
+        def index_file = file("${ref_dir}/${ref_name}${ext}")
+        if (!index_file.exists()) {
+            log.error "Required index file ${index_file} is missing."
+            log.error "Please index the reference genome using BWA-MEM2 and samtools."
+            exit 1
+        }
+    }
+
+    // Check for dictionary file
+    def dict_file = file("${ref_dir}/${ref_base}.dict")
+    if (!dict_file.exists()) {
+        log.error "Required dictionary file ${dict_file} is missing."
+        log.error "Please create a dictionary file using GATK CreateSequenceDictionary."
+        exit 1
+    }
+
     // Create simple reference channel with just the reference file
     ch_ref_fasta = Channel.value(ref_file)
     

@@ -13,19 +13,35 @@ process BWAMEM2_ALIGN {
 
     script:
     """
-    # Copy all reference index files to work directory
+    # List current directory for debugging
+    echo "Contents of working directory before symlinks:"
+    ls -la > workdir_contents_before.txt
+    
+    # Define reference path variables
     REF_PATH="${params.reference_genome}"
     REF_DIR=\$(dirname "\$REF_PATH")
     REF_NAME=\$(basename "\$REF_PATH")
     
-    # Copy all index files with *.ext pattern
-    cp "\$REF_DIR"/"\$REF_NAME".* ./
+    # Create symlinks for BWA-MEM2 index files
+    for ext in amb ann bwt.2bit.64 pac 0123; do
+        ln -s "\${REF_PATH}.\$ext" "genome.fa.\$ext"
+        if [ ! -e "genome.fa.\$ext" ]; then
+            echo "Error: Failed to create symlink for genome.fa.\$ext. Check if \${REF_PATH}.\$ext exists."
+            exit 1
+        fi
+    done
     
-    # Copy dict file if it exists
-    REF_BASE=\$(echo "\$REF_NAME" | sed 's/\\.[^.]*\$//')
-    if [ -f "\$REF_DIR/\$REF_BASE.dict" ]; then
-        cp "\$REF_DIR/\$REF_BASE.dict" ./genome.dict
-    fi
+    # Check for additional standard BWA-MEM2 files
+    for ext in bwt sa; do
+        if [ -e "\${REF_PATH}.\$ext" ]; then
+            ln -s "\${REF_PATH}.\$ext" "genome.fa.\$ext"
+            echo "Created symlink for genome.fa.\$ext"
+        fi
+    done
+    
+    # List current directory after linking for debugging
+    echo "Contents of working directory after symlinks:"
+    ls -la > workdir_contents_after.txt
     
     # Align with bwa-mem2
     bwa-mem2 mem -t ${task.cpus} -M genome.fa ${reads[0]} ${reads[1]} | \
