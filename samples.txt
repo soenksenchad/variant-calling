@@ -1,3 +1,2 @@
 sample_id	read1	read2
 MK-01_DH_0011	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-01_DH_0011_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-01_DH_0011_R2.fastq.gz
-MK-03_DH_2473	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-03_DH_2473_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-03_DH_2473_R2.fastq.gz

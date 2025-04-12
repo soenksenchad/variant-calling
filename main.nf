@@ -22,6 +22,7 @@ log.info """\
          .stripIndent()
 
 // Include Modules
+include { EXTRACT_FASTQ_METADATA } from './modules/local/extract_fastq_metadata'
 include { FASTP_TRIM } from './modules/local/fastp_trim'
 include { BWAMEM2_ALIGN } from './modules/local/bwamem2_align'
 include { SAMTOOLS_PROCESS } from './modules/local/samtools_process'
@@ -52,7 +53,7 @@ workflow {
     def ref_base = ref_name.take(ref_name.lastIndexOf('.'))
 
     // Validate reference index files exist
-    def required_extensions = ['.amb', '.ann', '.bwt.2bit.64', '.pac', '.0123', '.fai']
+    def required_extensions = ['.amb', '.ann', '.bwt.2bit.64', '.pac', '.sa', '.fai']
     required_extensions.each { ext ->
         def index_file = file("${ref_dir}/${ref_name}${ext}")
         if (!index_file.exists()) {
@@ -73,11 +74,18 @@ workflow {
     // Create simple reference channel with just the reference file
     ch_ref_fasta = Channel.value(ref_file)
     
+    // --- Step 0: Extract FASTQ Metadata ---
+    EXTRACT_FASTQ_METADATA(ch_reads)
+
     // --- Step 1: Read Trimming ---
     FASTP_TRIM(ch_reads)
 
     // --- Step 2: Alignment ---
-    ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_fasta)
+    ch_align_input = FASTP_TRIM.out.trimmed_reads
+        .join(EXTRACT_FASTQ_METADATA.out.rg_info) // [meta, reads, rg_info]
+        .combine(ch_ref_fasta)                    // [meta, reads, rg_info, ref]
+        .map { meta, reads, rg_info, ref -> [meta, reads, ref, rg_info] } // Reorder for BWAMEM2_ALIGN
+    
     BWAMEM2_ALIGN(ch_align_input)
 
     // --- Step 3: SAMtools Processing ---
