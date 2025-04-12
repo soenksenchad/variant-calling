@@ -1,24 +1,25 @@
 process BWAMEM2_ALIGN {
     tag "$meta.id"
-    label 'process_high_memory' // Example label, adjust if needed
+    label 'process_high_memory' // Adjust label if needed based on your setup
 
     // Use conda environment defined in config
     conda params.conda_env_path
 
     input:
-    tuple val(meta), path(reads) // Assuming reads are FASTQ files (paired-end)
-    // Reference genome parameter is implicitly available via params.reference_genome
+    tuple val(meta), path(reads)
+    // Reference genome parameter implicitly available via params.reference_genome
 
     output:
-    tuple val(meta), path("*.aligned.bam"), emit: bam
-    path "workdir_contents_before.txt"      , emit: log_before
-    path "workdir_contents_after.txt"       , emit: log_after
+    // Corrected: Emit the output channel as 'bam_files' as expected by main.nf
+    tuple val(meta), path("*.aligned.bam"), emit: bam_files
+    path "workdir_contents_before.txt"      , emit: log_before // Optional log output
+    path "workdir_contents_after.txt"       , emit: log_after  // Optional log output
 
     script:
     // Convert the string path parameter into a Path object
     def ref_path_obj = file(params.reference_genome)
-    def ref_dir = ref_path_obj.parent  // Now works on the Path object
-    def ref_name = ref_path_obj.name  // Now works on the Path object
+    def ref_dir = ref_path_obj.parent
+    def ref_name = ref_path_obj.name
     def ref_path_str = params.reference_genome // Keep original string for shell script use
 
     """
@@ -28,7 +29,6 @@ process BWAMEM2_ALIGN {
     echo "Contents of working directory before symlinks:"
     ls -la > workdir_contents_before.txt
 
-    # Use the Groovy variables derived from the Path object
     echo "Using reference path: ${ref_path_str}"
     echo "Reference Dir: ${ref_dir}"
     echo "Reference Name: ${ref_name}"
@@ -84,7 +84,7 @@ process BWAMEM2_ALIGN {
     echo "Running BWA-MEM2 alignment..."
     # Pass the shell variable RG_STRING to -R, ensure it's quoted
     bwa-mem2 mem -t ${task.cpus} -M -R "\$RG_STRING" genome.fa ${reads[0]} ${reads[1]} | \\
-    samtools view -@ ${task.cpus-1} -bS - > ${meta.id}.bam
+    samtools view -@ ${task.cpus-1} -bS - > ${meta.id}.bam  # Added threading to samtools view
 
     echo "Moving output BAM..."
     # Ensure the output matches the defined output name pattern
