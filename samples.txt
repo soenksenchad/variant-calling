@@ -1,0 +1,3 @@
+sample_id	read1	read2
+MK-01_DH_0011	MK-01_DH_0011_R1.fastq.gz	MK-01_DH_0011_R2.fastq.gz
+MK-03_DH_2473	MK-03_DH_2473_R1.fastq.gz	MK-03_DH_2473_R2.fastq.gz
