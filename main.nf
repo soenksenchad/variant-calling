@@ -5,8 +5,6 @@ nextflow.enable.dsl=2
 // Define Parameters
 params.reads = "samples.txt" // Input samplesheet (sample,fastq_1,fastq_2)
 params.reference_genome = "ref/genome.fasta.gz" // Reference genome (will be overridden by nextflow.config)
-params.ref_genome_dict = "${params.reference_genome.toString().replaceFirst(/\.gz$/, '')}.dict" // Reference dictionary
-params.ref_genome_fasta_index = "${params.reference_genome.toString().replaceFirst(/\.gz$/, '')}.fai" // Reference FASTA index
 params.intervals_file = "intervals_chromo_only_nopos.list" // File listing intervals (1-10)
 params.outdir = "./results"
 params.publish_dir_mode = 'copy' // Or 'link', 'rellink', etc.
@@ -45,7 +43,17 @@ workflow {
             [ meta, file(row.read1), file(row.read2) ]
         }
     ch_intervals = Channel.fromPath(params.intervals_file).splitText().map { it.trim() }.filter { it } // Emits '1', '2', ... '10'
-    ch_ref_tuple = Channel.of(file(params.reference_genome), file(params.ref_genome_dict), file(params.ref_genome_fasta_index))
+    
+    // Create reference tuple with appropriate derived paths
+    def ref_file = file(params.reference_genome)
+    def ref_base = ref_file.getBaseName()
+    def ref_dir = ref_file.getParent()
+    
+    // Paths where dict and index should be (will be created if they don't exist)
+    def dict_file = file("${ref_dir}/${ref_base}.dict")
+    def fai_file = file("${ref_dir}/${ref_file.getName()}.fai")
+    
+    ch_ref_tuple = Channel.of(tuple(ref_file, dict_file, fai_file))
 
     // --- Step 1: Reference Indexing ---
     REFERENCE_INDEX(ch_ref_tuple)
