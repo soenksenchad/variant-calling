@@ -13,6 +13,20 @@ process GATK_HAPLOTYPECALLER {
 
     script:
     """
+    # Copy all reference index files to work directory
+    REF_PATH="${params.reference_genome}"
+    REF_DIR=\$(dirname "\$REF_PATH")
+    REF_NAME=\$(basename "\$REF_PATH")
+    
+    # Copy all index files with *.ext pattern
+    cp "\$REF_DIR"/"\$REF_NAME".* ./
+    
+    # Copy dict file if it exists
+    REF_BASE=\$(echo "\$REF_NAME" | sed 's/\\.[^.]*\$//')
+    if [ -f "\$REF_DIR/\$REF_BASE.dict" ]; then
+        cp "\$REF_DIR/\$REF_BASE.dict" ./genome.dict
+    fi
+    
     # Create temporary directory for GATK within task directory
     mkdir -p gatk_tmp
     

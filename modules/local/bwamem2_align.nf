@@ -13,6 +13,20 @@ process BWAMEM2_ALIGN {
 
     script:
     """
+    # Copy all reference index files to work directory
+    REF_PATH="${params.reference_genome}"
+    REF_DIR=\$(dirname "\$REF_PATH")
+    REF_NAME=\$(basename "\$REF_PATH")
+    
+    # Copy all index files with *.ext pattern
+    cp "\$REF_DIR"/"\$REF_NAME".* ./
+    
+    # Copy dict file if it exists
+    REF_BASE=\$(echo "\$REF_NAME" | sed 's/\\.[^.]*\$//')
+    if [ -f "\$REF_DIR/\$REF_BASE.dict" ]; then
+        cp "\$REF_DIR/\$REF_BASE.dict" ./genome.dict
+    fi
+    
     # Align with bwa-mem2
     bwa-mem2 mem -t ${task.cpus} -M genome.fa ${reads[0]} ${reads[1]} | \
     samtools view -bS - > ${meta.id}.bam
