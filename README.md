@@ -17,6 +17,63 @@ This pipeline performs the following steps:
 - Conda or Mamba (recommended for faster environment creation)
 - SLURM workload manager (optional, for HPC execution)
 
+## Prerequisites
+
+- Nextflow (>= 21.10.0)
+- SLURM scheduler
+- Reference genome and index files
+- Conda with a variant-calling environment (containing bwa-mem2, samtools, gatk, fastp)
+
+## Reference Genome Preparation
+
+**Important:** Before running the pipeline, you must manually index your reference genome. The pipeline expects these index files to exist.
+
+To index your reference genome, run the following commands:
+
+```bash
+# Create a SLURM job script for indexing
+cat > index_genome.sh << 'EOF'
+#!/bin/bash
+#SBATCH --partition=amem
+#SBATCH --qos=mem
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=32
+#SBATCH --mem=600G
+#SBATCH --time=24:00:00
+
+# Replace with your reference genome path
+REF_GENOME="/path/to/your/reference.fa"
+
+# Load required modules or activate conda environment
+module load bwa-mem2 samtools gatk
+# OR
+# source activate variant-calling
+
+# Create BWA-MEM2 index
+echo "Creating BWA-MEM2 index..."
+bwa-mem2 index $REF_GENOME
+
+# Create SAMtools FASTA index
+echo "Creating SAMtools FASTA index..."
+samtools faidx $REF_GENOME
+
+# Create GATK sequence dictionary
+echo "Creating GATK sequence dictionary..."
+gatk CreateSequenceDictionary -R $REF_GENOME
+EOF
+
+# Submit the job
+sbatch index_genome.sh
+```
+
+Make sure to modify the path to point to your reference genome. This will create:
+- BWA-MEM2 index files (*.amb, *.ann, *.bwt, *.pac, *.sa)
+- SAMtools FASTA index (.fai)
+- GATK sequence dictionary (.dict)
+
+The pipeline requires all these files to be present in the same directory as the reference FASTA file.
+
 ## Usage
 
 ### 1. Installation
@@ -124,7 +181,6 @@ results/
 ├── samtools/           # Processed BAM files
 ├── gatk_haplotype/     # Individual GVCF files
 ├── gatk_pipe/          # Joint-called VCF files
-├── plink2/             # Population genetics outputs
 └── pipeline_info/      # Execution reports and logs
 ```
 

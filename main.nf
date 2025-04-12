@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 // Define Parameters
 params.reads = "samples.txt" // Input samplesheet (sample,fastq_1,fastq_2)
-params.reference_genome = "ref/genome.fasta.gz" // Reference genome (will be overridden by nextflow.config)
+params.reference_genome = "ref/genome.fasta" // Reference genome path (must already be indexed)
 params.intervals_file = "intervals_chromo_only_nopos.list" // File listing intervals (1-10)
 params.outdir = "./results"
 params.publish_dir_mode = 'copy' // Or 'link', 'rellink', etc.
@@ -23,7 +23,6 @@ log.info """\
 
 // Include Modules
 include { FASTP_TRIM } from './modules/local/fastp_trim'
-include { REFERENCE_INDEX } from './modules/local/reference_index'
 include { BWAMEM2_ALIGN } from './modules/local/bwamem2_align'
 include { SAMTOOLS_PROCESS } from './modules/local/samtools_process'
 include { GATK_HAPLOTYPECALLER } from './modules/local/gatk_haplotypecaller'
@@ -44,32 +43,45 @@ workflow {
         }
     ch_intervals = Channel.fromPath(params.intervals_file).splitText().map { it.trim() }.filter { it } // Emits '1', '2', ... '10'
     
-    // Create reference tuple with appropriate derived paths
+    // Reference genome files (assumes pre-indexed)
     def ref_file = file(params.reference_genome)
     def ref_base = ref_file.getBaseName()
     def ref_dir = ref_file.getParent()
+    def ref_name = ref_file.getName()
     
-    // Paths where dict and index should be (will be created if they don't exist)
+    // Expected index file paths
     def dict_file = file("${ref_dir}/${ref_base}.dict")
-    def fai_file = file("${ref_dir}/${ref_file.getName()}.fai")
+    def fai_file = file("${ref_dir}/${ref_name}.fai")
     
-    ch_ref_tuple = Channel.of(tuple(ref_file, dict_file, fai_file))
+    // Check if index files exist
+    if (!dict_file.exists()) {
+        log.error "Reference dictionary file not found: ${dict_file}"
+        log.error "Please index your reference genome before running the pipeline."
+        log.error "See README.md for instructions on how to index your reference genome."
+        exit 1
+    }
+    
+    if (!fai_file.exists()) {
+        log.error "Reference FASTA index file not found: ${fai_file}"
+        log.error "Please index your reference genome before running the pipeline."
+        log.error "See README.md for instructions on how to index your reference genome."
+        exit 1
+    }
+    
+    // Create reference channel
+    ch_ref_indexed = Channel.of(tuple(ref_file, dict_file, fai_file))
+    
+    // --- Step 1: Read Trimming ---
+    FASTP_TRIM(ch_reads)
 
-    // --- Step 1: Reference Indexing ---
-    REFERENCE_INDEX(ch_ref_tuple)
-    ch_ref_indexed = REFERENCE_INDEX.out.indexed_ref // Emits [ref, dict, fai]
-
-    // --- Step 2: Read Trimming ---
-    FASTP_TRIM(ch_reads.map{ meta, r1, r2 -> tuple(meta.sample_id, [r1, r2]) }) // Input: [sample_id, [r1, r2]]
-
-    // --- Step 3: Alignment ---
+    // --- Step 2: Alignment ---
     ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_indexed) // Input: [sample_id, [r1,r2], [ref, dict, fai]]
     BWAMEM2_ALIGN(ch_align_input.map{ sample_id, reads, ref_files -> tuple(sample_id, reads, ref_files[0]) }) // Input: [sample_id, [r1,r2], ref_path]
 
-    // --- Step 4: SAMtools Processing ---
+    // --- Step 3: SAMtools Processing ---
     SAMTOOLS_PROCESS(BWAMEM2_ALIGN.out.bam_files) // Input: [sample_id, bam_path]
 
-    // --- Step 5: Haplotype Calling (per sample, per interval) ---
+    // --- Step 4: Haplotype Calling (per sample, per interval) ---
     ch_haplotype_input = SAMTOOLS_PROCESS.out.processed_bam
                              .combine(ch_ref_indexed) // Combine with ref [sample_id, bam, [ref, dict, fai]]
                              .combine(ch_intervals)   // Combine with intervals [sample_id, bam, [ref, dict, fai], interval]
@@ -77,11 +89,10 @@ workflow {
 
     GATK_HAPLOTYPECALLER(ch_haplotype_input) // Emits: [sample_id, interval, gvcf, tbi]
 
-    // --- Step 6: Prepare for Joint Genotyping (Create Sample Map per Interval) ---
-    // Check for corresponding .tbi file existence before grouping
+    // --- Step 5: Prepare for Joint Genotyping (Create Sample Map per Interval) ---
     ch_gvcf_info = GATK_HAPLOTYPECALLER.out.gvcfs_interval
         .map { sample_id, interval, gvcf_path, tbi_path ->
-            // Check if the TBI file actually exists (belt and suspenders)
+            // Check if the TBI file actually exists
             if (file(tbi_path).exists()) {
                 return tuple(interval, tuple(sample_id, gvcf_path)) // Format for grouping: [interval, [sample_id, gvcf_path]]
             } else {
@@ -96,14 +107,13 @@ workflow {
 
     CREATE_SAMPLE_MAP(ch_grouped_gvcf_info) // Emits: [interval, map_file_path]
 
-    // --- Step 7: Joint Genotyping (per interval) ---
+    // --- Step 6: Joint Genotyping (per interval) ---
     // Pass the two required input channels as separate arguments
     GATK_JOINT_GENOTYPE(CREATE_SAMPLE_MAP.out.sample_map, ch_ref_indexed) // Emits: [interval, vcf_path, tbi_path]
 
     // --- Workflow Output ---
-    // Optional: collect outputs if needed, or rely on publishDir in processes
-     ch_final_vcfs = GATK_JOINT_GENOTYPE.out.filtered_vcf_interval
-     ch_final_vcfs.view { interval, vcf, tbi -> "Final VCF for interval ${interval}: ${vcf}" }
+    ch_final_vcfs = GATK_JOINT_GENOTYPE.out.filtered_vcf_interval
+    ch_final_vcfs.view { interval, vcf -> "Final VCF for interval ${interval}: ${vcf}" }
 
 }
 
