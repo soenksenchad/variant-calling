@@ -23,7 +23,7 @@ process EXTRACT_FASTQ_METADATA {
     INSTRUMENT=\$(echo "\$HEADER" | awk -F':' '{print \$1}' | sed 's/@//')
     FLOWCELL=\$(echo "\$HEADER" | awk -F':' '{print \$3}')
     LANE=\$(echo "\$HEADER" | awk -F':' '{print \$4}')
-    BARCODE=\$(echo "\$HEADER" | awk '{print \$2}' | awk -F':' '{print \$4}' | tr '+' '')
+    BARCODE=\$(echo "\$HEADER" | awk '{print \$2}' | awk -F':' '{print \$4}' | sed 's/+//g')
     
     # Set defaults if fields are missing
     [ -z "\$INSTRUMENT" ] && INSTRUMENT="unknown"
