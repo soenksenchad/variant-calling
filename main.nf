@@ -89,10 +89,8 @@ workflow {
     CREATE_SAMPLE_MAP(ch_grouped_gvcf_info) // Emits: [interval, map_file_path]
 
     // --- Step 7: Joint Genotyping (per interval) ---
-    ch_joint_input = CREATE_SAMPLE_MAP.out.sample_map
-                         .combine(ch_ref_indexed) // Combine with ref [interval, map_path, [ref, dict, fai]]
-
-    GATK_JOINT_GENOTYPE(ch_joint_input) // Emits: [interval, vcf_path, tbi_path]
+    // Pass the two required input channels as separate arguments
+    GATK_JOINT_GENOTYPE(CREATE_SAMPLE_MAP.out.sample_map, ch_ref_indexed) // Emits: [interval, vcf_path, tbi_path]
 
     // --- Workflow Output ---
     // Optional: collect outputs if needed, or rely on publishDir in processes
