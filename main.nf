@@ -72,24 +72,26 @@ workflow {
     
     // Create reference channel
     ch_ref_indexed = Channel.of(tuple(ref_file, dict_file, fai_file))
+    ch_ref_fasta = Channel.of(ref_file) // Single file for alignment
     
     // --- Step 1: Read Trimming ---
     FASTP_TRIM(ch_reads)
 
     // --- Step 2: Alignment ---
-    ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_indexed) // Input: [meta, [r1,r2], [ref, dict, fai]]
-    BWAMEM2_ALIGN(ch_align_input.map{ meta, reads, ref_files -> tuple(meta, reads, ref_files[0]) }) // Input: [meta, [r1,r2], ref_path]
+    // Combine trimmed reads with just the reference FASTA
+    ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_fasta)
+    BWAMEM2_ALIGN(ch_align_input)
 
     // --- Step 3: SAMtools Processing ---
-    SAMTOOLS_PROCESS(BWAMEM2_ALIGN.out.bam_files) // Input: [meta, bam_path]
+    SAMTOOLS_PROCESS(BWAMEM2_ALIGN.out.bam_files)
 
     // --- Step 4: Haplotype Calling (per sample, per interval) ---
+    // First combine with intervals, then with reference
     ch_haplotype_input = SAMTOOLS_PROCESS.out.processed_bam
-                             .combine(ch_ref_indexed) // Combine with ref [meta, bam, [ref, dict, fai]]
-                             .combine(ch_intervals)   // Combine with intervals [meta, bam, [ref, dict, fai], interval]
-                             .map { meta, bam, ref_files, interval -> tuple(meta, bam, ref_files[0], interval) } // Reformat [meta, bam, ref, interval]
+                             .combine(ch_intervals)   // [meta, bam, interval]
+                             .combine(ch_ref_fasta)   // [meta, bam, interval, ref]
 
-    GATK_HAPLOTYPECALLER(ch_haplotype_input) // Emits: [meta, interval, gvcf, tbi]
+    GATK_HAPLOTYPECALLER(ch_haplotype_input)
 
     // --- Step 5: Prepare for Joint Genotyping (Create Sample Map per Interval) ---
     ch_gvcf_info = GATK_HAPLOTYPECALLER.out.gvcfs_interval
@@ -110,12 +112,15 @@ workflow {
     CREATE_SAMPLE_MAP(ch_grouped_gvcf_info) // Emits: [interval, map_file_path]
 
     // --- Step 6: Joint Genotyping (per interval) ---
-    // Pass the two required input channels as separate arguments
-    GATK_JOINT_GENOTYPE(CREATE_SAMPLE_MAP.out.sample_map, ch_ref_indexed) // Emits: [interval, vcf_path, tbi_path]
+    // We need to modify how we pass the reference to joint genotyping
+    ch_joint_genotype_input = CREATE_SAMPLE_MAP.out.sample_map
+                                 .combine(Channel.of(ref_file)) // [interval, map_file, ref_file]
+    
+    GATK_JOINT_GENOTYPE(ch_joint_genotype_input)
 
     // --- Workflow Output ---
     ch_final_vcfs = GATK_JOINT_GENOTYPE.out.filtered_vcf_interval
-    ch_final_vcfs.view { interval, vcf -> "Final VCF for interval ${interval}: ${vcf}" }
+    ch_final_vcfs.view { interval, vcf, tbi -> "Final VCF for interval ${interval}: ${vcf}" }
 
 }
 

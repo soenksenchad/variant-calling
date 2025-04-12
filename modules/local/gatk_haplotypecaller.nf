@@ -6,7 +6,7 @@ process GATK_HAPLOTYPECALLER {
     time '24h'
 
     input:
-    tuple val(meta), path(bam_file), path(reference), val(interval)
+    tuple val(meta), path(bam_file), val(interval), path(reference)
 
     output:
     tuple val(meta), val(interval), path("${meta.id}.${interval}.g.vcf.gz"), path("${meta.id}.${interval}.g.vcf.gz.tbi"), emit: gvcfs_interval

@@ -5,8 +5,7 @@ process GATK_JOINT_GENOTYPE {
     time '156h'
 
     input:
-    tuple val(interval), path(sample_map)
-    tuple path(reference), path(dict), path(fai)
+    tuple val(interval), path(sample_map), path(reference)
 
     output:
     tuple val(interval), path("${interval}.filtered.vcf.gz"), path("${interval}.filtered.vcf.gz.tbi"), emit: filtered_vcf_interval
