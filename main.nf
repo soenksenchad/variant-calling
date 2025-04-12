@@ -36,15 +36,17 @@ workflow {
     ch_reads = Channel.fromPath(params.reads)
         .splitCsv(header: true, sep: '\t')
         .map { row -> 
-            def meta = [:]
-            meta.sample_id = row.sample_id
+            def meta = [id: row.sample_id]
+            def read1 = file(row.read1, checkIfExists: true)
+            def read2 = file(row.read2, checkIfExists: true)
             
-            [ meta, file(row.read1), file(row.read2) ]
+            [ meta, [read1, read2] ]
         }
+    
     ch_intervals = Channel.fromPath(params.intervals_file).splitText().map { it.trim() }.filter { it } // Emits '1', '2', ... '10'
     
     // Reference genome files (assumes pre-indexed)
-    def ref_file = file(params.reference_genome)
+    def ref_file = file(params.reference_genome, checkIfExists: true)
     def ref_base = ref_file.getBaseName()
     def ref_dir = ref_file.getParent()
     def ref_name = ref_file.getName()
@@ -75,26 +77,26 @@ workflow {
     FASTP_TRIM(ch_reads)
 
     // --- Step 2: Alignment ---
-    ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_indexed) // Input: [sample_id, [r1,r2], [ref, dict, fai]]
-    BWAMEM2_ALIGN(ch_align_input.map{ sample_id, reads, ref_files -> tuple(sample_id, reads, ref_files[0]) }) // Input: [sample_id, [r1,r2], ref_path]
+    ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_indexed) // Input: [meta, [r1,r2], [ref, dict, fai]]
+    BWAMEM2_ALIGN(ch_align_input.map{ meta, reads, ref_files -> tuple(meta, reads, ref_files[0]) }) // Input: [meta, [r1,r2], ref_path]
 
     // --- Step 3: SAMtools Processing ---
-    SAMTOOLS_PROCESS(BWAMEM2_ALIGN.out.bam_files) // Input: [sample_id, bam_path]
+    SAMTOOLS_PROCESS(BWAMEM2_ALIGN.out.bam_files) // Input: [meta, bam_path]
 
     // --- Step 4: Haplotype Calling (per sample, per interval) ---
     ch_haplotype_input = SAMTOOLS_PROCESS.out.processed_bam
-                             .combine(ch_ref_indexed) // Combine with ref [sample_id, bam, [ref, dict, fai]]
-                             .combine(ch_intervals)   // Combine with intervals [sample_id, bam, [ref, dict, fai], interval]
-                             .map { sample_id, bam, ref_files, interval -> tuple(sample_id, bam, ref_files[0], interval) } // Reformat [sample_id, bam, ref, interval]
+                             .combine(ch_ref_indexed) // Combine with ref [meta, bam, [ref, dict, fai]]
+                             .combine(ch_intervals)   // Combine with intervals [meta, bam, [ref, dict, fai], interval]
+                             .map { meta, bam, ref_files, interval -> tuple(meta, bam, ref_files[0], interval) } // Reformat [meta, bam, ref, interval]
 
-    GATK_HAPLOTYPECALLER(ch_haplotype_input) // Emits: [sample_id, interval, gvcf, tbi]
+    GATK_HAPLOTYPECALLER(ch_haplotype_input) // Emits: [meta, interval, gvcf, tbi]
 
     // --- Step 5: Prepare for Joint Genotyping (Create Sample Map per Interval) ---
     ch_gvcf_info = GATK_HAPLOTYPECALLER.out.gvcfs_interval
-        .map { sample_id, interval, gvcf_path, tbi_path ->
+        .map { meta, interval, gvcf_path, tbi_path ->
             // Check if the TBI file actually exists
             if (file(tbi_path).exists()) {
-                return tuple(interval, tuple(sample_id, gvcf_path)) // Format for grouping: [interval, [sample_id, gvcf_path]]
+                return tuple(interval, tuple(meta.id, gvcf_path)) // Format for grouping: [interval, [sample_id, gvcf_path]]
             } else {
                 log.warn "Missing index file ${tbi_path} for ${gvcf_path}. Skipping this GVCF for interval ${interval}."
                 return null // Indicate failure

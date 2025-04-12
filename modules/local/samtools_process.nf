@@ -1,44 +1,33 @@
 process SAMTOOLS_PROCESS {
-    tag "$sample_id"
+    tag "$meta.id"
     publishDir "${params.outdir}/samtools", mode: params.publish_dir_mode
     cpus 24
     memory '32 GB'
     time '24h'
 
-    input: 
-    tuple val(sample_id), path(bam_file)
+    input:
+    tuple val(meta), path(bam_file)
 
     output:
-    tuple val(sample_id), path("${sample_id}_processed.bam"), emit: processed_bam
+    tuple val(meta), path("${meta.id}.sorted.markdup.bam"), emit: processed_bam
+    tuple val(meta), path("${meta.id}.sorted.markdup.bam.bai"), emit: bam_index
+    path "${meta.id}_samtools_stats.txt", emit: stats
 
     script:
     """
-    # Create temporary directory for stats
-    mkdir -p stats
-    # Create temporary directory for sorting
-    mkdir -p tmp
-
-    # Filter for mapped reads
-    samtools view -@ ${task.cpus} -u \\
-        -o "${sample_id}_justmap.bam" \\
-        "${bam_file}"
-
-    # Run samtools pipeline (collate, fixmate, sort, markdup)
-    samtools collate -@ ${task.cpus} -O -u \\
-        "${sample_id}_justmap.bam" - | \\
-    samtools fixmate -@ ${task.cpus} -m -u - - | \\
-    samtools sort -@ ${task.cpus} -T tmp/ -u -O bam - | \\
-    samtools markdup -@ ${task.cpus} \\
-        -f "stats/${sample_id}_stats_file.txt" \\
-        -S -d 2500 \\
-        --mode t \\
-        --include-fails \\
-        - "${sample_id}_processed.bam"
-
+    # Sort BAM file (if needed)
+    samtools sort -@ ${task.cpus} -o ${meta.id}.sorted.bam ${bam_file}
+    
+    # Mark duplicates
+    samtools markdup -@ ${task.cpus} ${meta.id}.sorted.bam ${meta.id}.sorted.markdup.bam
+    
     # Index the final BAM file
-    samtools index -@ ${task.cpus} "${sample_id}_processed.bam"
-
+    samtools index -@ ${task.cpus} ${meta.id}.sorted.markdup.bam
+    
+    # Generate statistics
+    samtools stats ${meta.id}.sorted.markdup.bam > ${meta.id}_samtools_stats.txt
+    
     # Clean up intermediate files
-    rm "${sample_id}_justmap.bam"
+    rm ${meta.id}.sorted.bam
     """
 }
