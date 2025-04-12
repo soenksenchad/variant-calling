@@ -23,9 +23,9 @@ process BWAMEM2_ALIGN {
     
     # Use the interpolated Nextflow parameter
     REF_PATH="${params.reference_genome}"
-    # Use shell commands to get dir/name, escaping the shell substitution $
-    REF_DIR=\$(dirname "$REF_PATH")
-    REF_NAME=\$(basename "$REF_PATH")
+    # Use shell commands to get dir/name
+    REF_DIR=$(dirname "$REF_PATH")
+    REF_NAME=$(basename "$REF_PATH")
     
     echo "Using reference path: $REF_PATH"
     echo "Reference Dir: $REF_DIR"
