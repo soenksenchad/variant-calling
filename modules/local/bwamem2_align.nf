@@ -42,7 +42,7 @@ process BWAMEM2_ALIGN {
     ls -la > workdir_contents_after.txt
     
     # Read read group info from file
-    RG_ID=\$(awk -F\'\\t\' \'/ID:/ {print \$1}\' ${rg_info} | sed \'s/ID://\')\n    RG_SM=\$(awk -F\'\\t\' \'/SM:/ {print \$2}\' ${rg_info} | sed \'s/SM://\')\n    RG_LB=\$(awk -F\'\\t\' \'/LB:/ {print \$3}\' ${rg_info} | sed \'s/LB://\')\n    RG_PU=\$(awk -F\'\\t\' \'/PU:/ {print \$4}\' ${rg_info} | sed \'s/PU://\')\n    RG_PL=\$(awk -F\'\\t\' \'/PL:/ {print \$5}\' ${rg_info} | sed \'s/PL://\')\n    \n    # Construct read group string\n    RG=\"@RG\\\\tID:\\${RG_ID}\\\\tSM:\\${RG_SM}\\\\tLB:\\${RG_LB}\\\\tPL:\\${RG_PL}\\\\tPU:\\${RG_PU}\"\n    \n    # Align with bwa-mem2 including read group\n    bwa-mem2 mem -t ${task.cpus} -M -R \"\\\$RG\" genome.fa ${reads[0]} ${reads[1]} | \\\n    samtools view -bS - > ${meta.id}.bam\n
+    RG_ID=\$(awk -F\'\\t\' \'/ID:/ {print \$1}\' ${rg_info} | sed \'s/ID://\')\n    RG_SM=\$(awk -F\'\\t\' \'/SM:/ {print \$2}\' ${rg_info} | sed \'s/SM://\')\n    RG_LB=\$(awk -F\'\\t\' \'/LB:/ {print \$3}\' ${rg_info} | sed \'s/LB://\')\n    RG_PU=\$(awk -F\'\\t\' \'/PU:/ {print \$4}\' ${rg_info} | sed \'s/PU://\')\n    RG_PL=\$(awk -F\'\\t\' \'/PL:/ {print \$5}\' ${rg_info} | sed \'s/PL://\')\n    \n    # Construct read group string, escaping special characters for bwa-mem2 -R\n    RG=\"@RG\\\\tID:\\${RG_ID}\\\\tSM:\\${RG_SM}\\\\tLB:\\${RG_LB}\\\\tPL:\\${RG_PL}\\\\tPU:\\${RG_PU}\"\n    \n    # Align with bwa-mem2 including read group\n    bwa-mem2 mem -t ${task.cpus} -M -R \"\\${RG}\" genome.fa ${reads[0]} ${reads[1]} | \\\n    samtools view -bS - > ${meta.id}.bam\n
 
     # Output the unsorted aligned BAM for SAMTOOLS_PROCESS
     mv ${meta.id}.bam ${meta.id}.aligned.bam
