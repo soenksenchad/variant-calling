@@ -36,7 +36,14 @@ include { GATK_JOINT_GENOTYPE } from './modules/local/gatk_joint_genotype'
 workflow {
 
     // --- Input Channels ---
-    ch_reads = Channel.fromSamplesheet(params.reads, [separator: '\t']) // Emits [ meta, reads_r1, reads_r2 ] -> use meta.id for sample_id
+    ch_reads = Channel.fromPath(params.reads)
+        .splitCsv(header: true, sep: '\t')
+        .map { row -> 
+            def meta = [:]
+            meta.sample_id = row.sample_id
+            
+            [ meta, file(row.read1), file(row.read2) ]
+        }
     ch_intervals = Channel.fromPath(params.intervals_file).splitText().map { it.trim() }.filter { it } // Emits '1', '2', ... '10'
     ch_ref_tuple = Channel.of(file(params.ref_genome), file(params.ref_genome_dict), file(params.ref_genome_fasta_index))
 
