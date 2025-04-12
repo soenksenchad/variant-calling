@@ -4,7 +4,7 @@ nextflow.enable.dsl=2
 
 // Define Parameters
 params.reads = "samples.txt" // Input samplesheet (sample,fastq_1,fastq_2)
-params.reference_genome = "ref/genome.fasta" // Reference genome path (must already be indexed)
+params.reference_genome = "$projectDir/reference/Zmays_833_Zm-B73-REFERENCE-NAM-5.0.fa" // Reference genome in reference directory
 params.intervals_file = "intervals_chromo_only_nopos.list" // File listing intervals (1-10)
 params.outdir = "./results"
 params.publish_dir_mode = 'copy' // Or 'link', 'rellink', etc.
@@ -51,6 +51,9 @@ workflow {
     def ref_dir = ref_file.getParent()
     def ref_name = ref_file.getName()
     
+    // Get full path for reference
+    def ref_path = ref_file.toAbsolutePath().toString()
+    
     // Expected index file paths
     def dict_file = file("${ref_dir}/${ref_base}.dict")
     def fai_file = file("${ref_dir}/${ref_name}.fai")
@@ -70,15 +73,14 @@ workflow {
         exit 1
     }
     
-    // Create reference channel
-    ch_ref_indexed = Channel.of(tuple(ref_file, dict_file, fai_file))
-    ch_ref_fasta = Channel.of(ref_file) // Single file for alignment
+    // Create channels for reference files
+    ch_ref_fasta = Channel.value(ref_file)
     
     // --- Step 1: Read Trimming ---
     FASTP_TRIM(ch_reads)
 
     // --- Step 2: Alignment ---
-    // Combine trimmed reads with just the reference FASTA
+    // For BWA-MEM2, you need the reference file staged in the working directory
     ch_align_input = FASTP_TRIM.out.trimmed_reads.combine(ch_ref_fasta)
     BWAMEM2_ALIGN(ch_align_input)
 
@@ -114,7 +116,7 @@ workflow {
     // --- Step 6: Joint Genotyping (per interval) ---
     // We need to modify how we pass the reference to joint genotyping
     ch_joint_genotype_input = CREATE_SAMPLE_MAP.out.sample_map
-                                 .combine(Channel.of(ref_file)) // [interval, map_file, ref_file]
+                                 .combine(ch_ref_fasta)  // [interval, map_file, ref_file]
     
     GATK_JOINT_GENOTYPE(ch_joint_genotype_input)
 

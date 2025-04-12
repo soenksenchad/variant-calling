@@ -6,18 +6,30 @@ process BWAMEM2_ALIGN {
     time '24h'
     
     input:
-    tuple val(meta), path(reads), path(reference)
+    tuple val(meta), path(reads), path(reference, stageAs: "genome.fa")
 
     output:
     tuple val(meta), path("${meta.id}.aligned.bam"), emit: bam_files
 
     script:
-    // Get the absolute path to the reference
-    def ref_path = reference.toAbsolutePath()
+    // Create a symlink to all reference index files in current directory
+    def ref_dir = new File(reference).getParent()
+    def ref_name = reference.getName()
+    def ref_base = ref_name.take(ref_name.lastIndexOf('.'))
     
     """
+    # Create symlinks to all reference index files
+    for idx_file in ${ref_dir}/${ref_name}.*; do
+        ln -sf \$idx_file ./\$(basename \$idx_file)
+    done
+    
+    # Special case for .dict file
+    if [ -f "${ref_dir}/${ref_base}.dict" ]; then
+        ln -sf "${ref_dir}/${ref_base}.dict" ./genome.dict
+    fi
+    
     # Align with bwa-mem2
-    bwa-mem2 mem -t ${task.cpus} -M ${ref_path} ${reads[0]} ${reads[1]} | \
+    bwa-mem2 mem -t ${task.cpus} -M genome.fa ${reads[0]} ${reads[1]} | \
     samtools view -bS - > ${meta.id}.bam
 
     # Sort BAM file

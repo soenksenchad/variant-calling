@@ -26,10 +26,20 @@ This pipeline performs the following steps:
 
 ## Reference Genome Preparation
 
-**Important:** Before running the pipeline, you must manually index your reference genome. The pipeline expects these index files to exist.
+**Important:** Before running the pipeline, you must manually index your reference genome and place it in the `reference` directory.
 
-To index your reference genome, run the following commands:
+### Setting Up The Reference Directory
 
+1. Place your reference genome file in the `reference` directory:
+```bash
+# Create the reference directory if it doesn't exist
+mkdir -p reference
+
+# Copy your reference genome to the reference directory
+cp /path/to/your/reference.fa reference/
+```
+
+2. Index the reference genome file:
 ```bash
 # Create a SLURM job script for indexing
 cat > index_genome.sh << 'EOF'
@@ -42,8 +52,8 @@ cat > index_genome.sh << 'EOF'
 #SBATCH --mem=600G
 #SBATCH --time=24:00:00
 
-# Replace with your reference genome path
-REF_GENOME="/path/to/your/reference.fa"
+# Path to reference genome in the reference directory
+REF_GENOME="./reference/your_reference.fa"
 
 # Load required modules or activate conda environment
 module load bwa-mem2 samtools gatk
@@ -67,12 +77,26 @@ EOF
 sbatch index_genome.sh
 ```
 
-Make sure to modify the path to point to your reference genome. This will create:
+The pipeline requires all these index files to be present in the `reference` directory alongside the reference FASTA file:
 - BWA-MEM2 index files (*.amb, *.ann, *.bwt, *.pac, *.sa)
 - SAMtools FASTA index (.fai)
 - GATK sequence dictionary (.dict)
 
-The pipeline requires all these files to be present in the same directory as the reference FASTA file.
+### Alternative: Using An Existing Pre-Indexed Reference Genome
+
+If you already have an indexed reference genome, you can create symbolic links to your existing files:
+
+```bash
+# Create the reference directory
+mkdir -p reference
+
+# Create symbolic links to reference genome and index files
+ln -s /path/to/your/indexed/reference.fa reference/
+ln -s /path/to/your/indexed/reference.fa.* reference/
+ln -s /path/to/your/indexed/reference.dict reference/
+```
+
+Make sure all necessary index files are linked or copied to the reference directory.
 
 ## Usage
 
