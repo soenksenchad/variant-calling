@@ -23,9 +23,9 @@ process BWAMEM2_ALIGN {
     
     # Use the interpolated Nextflow parameter
     REF_PATH="${params.reference_genome}"
-    # Use shell commands to get dir/name
-    REF_DIR=$(dirname "$REF_PATH")
-    REF_NAME=$(basename "$REF_PATH")
+    # Use shell commands to get dir/name, escaping the shell substitution $
+    REF_DIR=\$(dirname "$REF_PATH")
+    REF_NAME=\$(basename "$REF_PATH")
     
     echo "Using reference path: $REF_PATH"
     echo "Reference Dir: $REF_DIR"
@@ -61,11 +61,11 @@ process BWAMEM2_ALIGN {
     
     echo "Reading read group info from ${rg_info}..."
     # Escape $ for awk fields
-    RG_ID=$(awk -F'\t' '{print $1}' ${rg_info} | sed 's/ID://')
-    RG_SM=$(awk -F'\t' '{print $2}' ${rg_info} | sed 's/SM://')
-    RG_LB=$(awk -F'\t' '{print $3}' ${rg_info} | sed 's/LB://')
-    RG_PU=$(awk -F'\t' '{print $4}' ${rg_info} | sed 's/PU://')
-    RG_PL=$(awk -F'\t' '{print $5}' ${rg_info} | sed 's/PL://')
+    RG_ID=\$(awk -F'\t' '{print $1}' ${rg_info} | sed 's/ID://')
+    RG_SM=\$(awk -F'\t' '{print $2}' ${rg_info} | sed 's/SM://')
+    RG_LB=\$(awk -F'\t' '{print $3}' ${rg_info} | sed 's/LB://')
+    RG_PU=\$(awk -F'\t' '{print $4}' ${rg_info} | sed 's/PU://')
+    RG_PL=\$(awk -F'\t' '{print $5}' ${rg_info} | sed 's/PL://')
 
     # Check if variables were extracted
     if [ -z "$RG_ID" ] || [ -z "$RG_SM" ] || [ -z "$RG_LB" ] || [ -z "$RG_PU" ] || [ -z "$RG_PL" ]; then
@@ -76,7 +76,7 @@ process BWAMEM2_ALIGN {
     fi
     
     # Construct read group string using printf and shell variables
-    RG_STRING=$(printf '@RG\tID:%s\tSM:%s\tLB:%s\tPL:%s\tPU:%s' "$RG_ID" "$RG_SM" "$RG_LB" "$RG_PL" "$RG_PU")
+    RG_STRING=\$(printf '@RG\tID:%s\tSM:%s\tLB:%s\tPL:%s\tPU:%s' "$RG_ID" "$RG_SM" "$RG_LB" "$RG_PL" "$RG_PU")
     echo "Constructed RG string: $RG_STRING"
 
     echo "Running BWA-MEM2 alignment..."
