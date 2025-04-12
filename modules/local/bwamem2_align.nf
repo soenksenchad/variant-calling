@@ -12,39 +12,62 @@ process BWAMEM2_ALIGN {
     tuple val(meta), path("${meta.id}.aligned.bam"), emit: bam_files
 
     script:
-    """
-    # List current directory for debugging
+    // Use a shell block with explicit newlines for clarity and correctness
+    '''
+    #!/bin/bash
+    set -e -o pipefail
+
     echo "Contents of working directory before symlinks:"
     ls -la > workdir_contents_before.txt
     
-    # Define reference path variables
     REF_PATH="${params.reference_genome}"
-    REF_DIR=\$(dirname "\$REF_PATH")
-    REF_NAME=\$(basename "\$REF_PATH")
+    REF_DIR=$(dirname "$REF_PATH")
+    REF_NAME=$(basename "$REF_PATH")
     
-    # Create symlinks for BWA-MEM2 index files
+    echo "Creating symlinks for BWA-MEM2 index files..."
     for ext in amb ann bwt.2bit.64 pac sa; do
-        ln -s "\${REF_PATH}.\$ext" "genome.fa.\$ext"
-        if [ ! -e "genome.fa.\$ext" ]; then
-            echo "Error: Failed to create symlink for genome.fa.\$ext. Check if \${REF_PATH}.\$ext exists."
+        ln -s "${REF_PATH}.$ext" "genome.fa.$ext"
+        if [ ! -e "genome.fa.$ext" ]; then
+            echo "Error: Failed to create symlink for genome.fa.$ext. Check if ${REF_PATH}.$ext exists."
             exit 1
         fi
     done
     
-    # Check for additional optional BWA index file
-    if [ -e "\${REF_PATH}.bwt" ]; then
-        ln -s "\${REF_PATH}.bwt" "genome.fa.bwt"
+    if [ -e "${REF_PATH}.bwt" ]; then
+        ln -s "${REF_PATH}.bwt" "genome.fa.bwt"
         echo "Created symlink for genome.fa.bwt"
     fi
     
-    # List current directory after linking for debugging
     echo "Contents of working directory after symlinks:"
     ls -la > workdir_contents_after.txt
     
-    # Read read group info from file using corrected awk and sed
-    RG_ID=\$(awk -F'\\t' '{print \$1}' ${rg_info} | sed 's/ID://')\n    RG_SM=\$(awk -F'\\t' '{print \$2}' ${rg_info} | sed 's/SM://')\n    RG_LB=\$(awk -F'\\t' '{print \$3}' ${rg_info} | sed 's/LB://')\n    RG_PU=\$(awk -F'\\t' '{print \$4}' ${rg_info} | sed 's/PU://')\n    RG_PL=\$(awk -F'\\t' '{print \$5}' ${rg_info} | sed 's/PL://')\n    \n    # Construct read group string, escaping special characters for bwa-mem2 -R\n    RG=\"@RG\\\\tID:\\${RG_ID}\\\\tSM:\\${RG_SM}\\\\tLB:\\${RG_LB}\\\\tPL:\\${RG_PL}\\\\tPU:\\${RG_PU}\"\n    \n    # Align with bwa-mem2 including read group\n    bwa-mem2 mem -t ${task.cpus} -M -R \"\\${RG}\" genome.fa ${reads[0]} ${reads[1]} | \\\n    samtools view -bS - > ${meta.id}.bam\n
+    echo "Reading read group info from ${rg_info}..."
+    RG_ID=$(awk -F'\t' '{print $1}' ${rg_info} | sed 's/ID://')
+    RG_SM=$(awk -F'\t' '{print $2}' ${rg_info} | sed 's/SM://')
+    RG_LB=$(awk -F'\t' '{print $3}' ${rg_info} | sed 's/LB://')
+    RG_PU=$(awk -F'\t' '{print $4}' ${rg_info} | sed 's/PU://')
+    RG_PL=$(awk -F'\t' '{print $5}' ${rg_info} | sed 's/PL://')
 
-    # Output the unsorted aligned BAM for SAMTOOLS_PROCESS
+    # Check if variables were extracted
+    if [ -z "$RG_ID" ] || [ -z "$RG_SM" ] || [ -z "$RG_LB" ] || [ -z "$RG_PU" ] || [ -z "$RG_PL" ]; then
+        echo "Error: Failed to extract one or more read group fields from ${rg_info}"
+        echo "Content of ${rg_info}:"
+        cat ${rg_info}
+        exit 1
+    fi
+    
+    # Construct read group string for BWA-MEM2 -R option
+    # Ensure tabs are literal tabs for the @RG header
+    RG_STRING=$(printf '@RG\tID:%s\tSM:%s\tLB:%s\tPL:%s\tPU:%s' "$RG_ID" "$RG_SM" "$RG_LB" "$RG_PL" "$RG_PU")
+    echo "Constructed RG string: $RG_STRING"
+
+    echo "Running BWA-MEM2 alignment..."
+    bwa-mem2 mem -t ${task.cpus} -M -R "$RG_STRING" genome.fa ${reads[0]} ${reads[1]} | \
+    samtools view -bS - > ${meta.id}.bam
+
+    echo "Moving output BAM..."
     mv ${meta.id}.bam ${meta.id}.aligned.bam
-    """
+
+    echo "Alignment finished."
+    '''
 }
