@@ -74,8 +74,13 @@ process BWAMEM2_ALIGN {
         local fastq=\$1
         local sample_name=\$2
 
-        # Extract header information
-        local header=\$(zcat "T_I_ratio:\${sample_name}.\${flowcell}.\${lane}\\tSM:\${sample_name}\\tLB:Lib2\\tPU:\${flowcell}.\${lane}.\${barcode}\\tPL:Illumina"
+        # Extract header information using the read group info from the previous stage
+        local rg_file="${meta.id}_rg_info.txt"
+        if [ -f "\$rg_file" ]; then
+            cat "\$rg_file"
+        else
+            echo "@RG\\tID:${meta.id}\\tSM:${meta.id}\\tLB:lib1\\tPL:ILLUMINA"
+        fi
     }
 
     # Get read group information
