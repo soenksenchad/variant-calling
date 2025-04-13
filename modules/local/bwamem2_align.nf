@@ -75,13 +75,7 @@ process BWAMEM2_ALIGN {
         local sample_name=\$2
 
         # Extract header information
-        local header=\$(zcat "\${fastq}" | head -n 1)
-        local flowcell=\$(echo "\${header}" | awk -F: '{print \$3}')
-        local lane=\$(echo "\${header}" | awk -F: '{print \$4}')
-        local barcode=\$(echo "\${header}" | awk -F: '{print \$10}')
-
-        # Construct read group string with escaped tabs for literal output
-        echo -e "@RG\\tID:\${sample_name}.\${flowcell}.\${lane}\\tSM:\${sample_name}\\tLB:Lib2\\tPU:\${flowcell}.\${lane}.\${barcode}\\tPL:Illumina"
+        local header=\$(zcat "T_I_ratio:\${sample_name}.\${flowcell}.\${lane}\\tSM:\${sample_name}\\tLB:Lib2\\tPU:\${flowcell}.\${lane}.\${barcode}\\tPL:Illumina"
     }
 
     # Get read group information

@@ -11,6 +11,7 @@ process GATK_JOINT_GENOTYPE {
     tuple val(interval), path("${interval}.filtered.vcf.gz"), path("${interval}.filtered.vcf.gz.tbi"), emit: filtered_vcf_interval
 
     script:
+    def mem = task.memory ? task.memory.toGiga() : 120
     """
     # List current directory for debugging
     echo "Contents of working directory before symlinks:"
@@ -44,7 +45,7 @@ process GATK_JOINT_GENOTYPE {
     WORKSPACE="genomicsdb_${interval}"
     
     # Import GVCFs to GenomicsDB
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" GenomicsDBImport \\
+    gatk --java-options "-Xmx${mem}g" GenomicsDBImport \\
         --genomicsdb-workspace-path \$WORKSPACE \\
         --batch-size 50 \\
         -L ${interval} \\
@@ -53,7 +54,7 @@ process GATK_JOINT_GENOTYPE {
         --max-num-intervals-to-import-in-parallel ${Math.max(1, task.cpus/8 as int)}
 
     # Run joint genotyping on the interval
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" GenotypeGVCFs \\
+    gatk --java-options "-Xmx${mem}g" GenotypeGVCFs \\
         -R genome.fa \\
         -V gendb://\$WORKSPACE \\
         -O ${interval}.vcf.gz \\
@@ -61,7 +62,7 @@ process GATK_JOINT_GENOTYPE {
         --tmp-dir=./tmp
 
     # Apply variant filtration
-    gatk --java-options "-Xmx${task.memory.toGiga()}g" VariantFiltration \\
+    gatk --java-options "-Xmx${mem}g" VariantFiltration \\
         -R genome.fa \\
         -V ${interval}.vcf.gz \\
         -O ${interval}.filtered.vcf.gz \\
