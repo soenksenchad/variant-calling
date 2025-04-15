@@ -12,13 +12,11 @@ This pipeline performs the following steps:
 - Joint genotyping and variant filtering (GATK)
 
 ## Requirements
-
 - Nextflow 21.10.0 or later
 - Conda or Mamba (recommended for faster environment creation)
 - SLURM workload manager (optional, for HPC execution)
 
 ## Prerequisites
-
 - Nextflow (>= 21.10.0)
 - SLURM scheduler
 - Reference genome and index files
@@ -78,7 +76,7 @@ sbatch index_genome.sh
 ```
 
 The pipeline requires all these index files to be present in the `reference` directory alongside the reference FASTA file:
-- BWA-MEM2 index files (*.amb, *.ann, *.bwt, *.pac, *.sa)
+- BWA-MEM2 index files (*.amb, *.ann, *.bwt, *.pac, *.sa, *.0123)
 - SAMtools FASTA index (.fai)
 - GATK sequence dictionary (.dict)
 
@@ -104,8 +102,8 @@ Make sure all necessary index files are linked or copied to the reference direct
 
 Clone this repository:
 ```bash
-git clone https://github.com/yourusername/nf_BFFcent.git
-cd nf_BFFcent
+git clone https://github.com/yourusername/variant_calling.git
+cd variant_calling
 ```
 
 ### 2. Conda Environment
@@ -121,6 +119,12 @@ Prepare your sample file (`samples.txt`) with tab-separated values:
 sample_id    read1    read2
 sample1    /path/to/sample1_R1.fastq.gz    /path/to/sample1_R2.fastq.gz
 sample2    /path/to/sample2_R1.fastq.gz    /path/to/sample2_R2.fastq.gz
+```
+
+If all of your files are in a directory you can use the script create_sample_list_from_dir.sh to automate the creation of the samples.txt file
+
+```
+./modules/local/create_sample_list_from_dir.sh /path/to/fastq_files/dir/
 ```
 
 ### 4. Reference genome
