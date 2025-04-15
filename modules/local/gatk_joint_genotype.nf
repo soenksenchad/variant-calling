@@ -2,6 +2,7 @@ process GATK_JOINT_GENOTYPE {
     tag "Interval $interval"
     publishDir "${params.outdir}/gatk_pipe", mode: params.publish_dir_mode
     cpus 32
+    memory '120 GB'
     time '156h'
 
     input:
@@ -13,6 +14,9 @@ process GATK_JOINT_GENOTYPE {
     script:
     def mem = task.memory ? task.memory.toGiga() : 120
     """
+    #!/bin/bash
+    set -e -o pipefail
+    
     # List current directory for debugging
     echo "Contents of working directory before symlinks:"
     ls -la > workdir_contents_before.txt
@@ -44,8 +48,12 @@ process GATK_JOINT_GENOTYPE {
     # Create a unique workspace for this interval
     WORKSPACE="genomicsdb_${interval}"
     
+    # Create tmp directory
+    mkdir -p ./tmp
+    
     # Import GVCFs to GenomicsDB
-    gatk --java-options "-Xmx${mem}g" GenomicsDBImport \\
+    echo "Starting GenomicsDBImport for interval ${interval}..."
+    gatk --java-options "-Xmx${mem}g -Djava.io.tmpdir=./tmp" GenomicsDBImport \\
         --genomicsdb-workspace-path \$WORKSPACE \\
         --batch-size 50 \\
         -L ${interval} \\
@@ -54,7 +62,8 @@ process GATK_JOINT_GENOTYPE {
         --max-num-intervals-to-import-in-parallel ${Math.max(1, task.cpus/8 as int)}
 
     # Run joint genotyping on the interval
-    gatk --java-options "-Xmx${mem}g" GenotypeGVCFs \\
+    echo "Starting GenotypeGVCFs for interval ${interval}..."
+    gatk --java-options "-Xmx${mem}g -Djava.io.tmpdir=./tmp" GenotypeGVCFs \\
         -R genome.fa \\
         -V gendb://\$WORKSPACE \\
         -O ${interval}.vcf.gz \\
@@ -62,11 +71,14 @@ process GATK_JOINT_GENOTYPE {
         --tmp-dir=./tmp
 
     # Apply variant filtration
-    gatk --java-options "-Xmx${mem}g" VariantFiltration \\
+    echo "Starting VariantFiltration for interval ${interval}..."
+    gatk --java-options "-Xmx${mem}g -Djava.io.tmpdir=./tmp" VariantFiltration \\
         -R genome.fa \\
         -V ${interval}.vcf.gz \\
         -O ${interval}.filtered.vcf.gz \\
         --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || MQRankSum < -12.5 || ReadPosRankSum < -8.0" \\
         --filter-name "basic_snp_filter"
+        
+    echo "Completed processing for interval ${interval}"
     """
 }

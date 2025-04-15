@@ -1,6 +1,6 @@
 process GATK_HAPLOTYPECALLER {
     tag "$meta.id - Interval $interval"
-    publishDir "${params.outdir}/gatk_haplotype", mode: params.publish_dir_mode
+    publishDir "${params.outdir}/gatk_haplotype", mode: params.publish_dir_mode, pattern: "*.g.vcf.gz*"
     cpus 28
     memory '64 GB'
     time '24h'

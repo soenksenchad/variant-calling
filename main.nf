@@ -27,8 +27,9 @@ include { FASTP_TRIM } from './modules/local/fastp_trim'
 include { BWAMEM2_ALIGN } from './modules/local/bwamem2_align'
 include { SAMTOOLS_PROCESS } from './modules/local/samtools_process'
 include { GATK_HAPLOTYPECALLER } from './modules/local/gatk_haplotypecaller'
-include { CREATE_SAMPLE_MAP } from './modules/local/create_sample_map'
-include { GATK_JOINT_GENOTYPE } from './modules/local/gatk_joint_genotype'
+// The following modules are kept but not used in the truncated workflow
+// include { CREATE_SAMPLE_MAP } from './modules/local/create_sample_map'
+// include { GATK_JOINT_GENOTYPE } from './modules/local/gatk_joint_genotype'
 
 // Workflow Definition
 workflow {
@@ -98,6 +99,14 @@ workflow {
 
     GATK_HAPLOTYPECALLER(ch_haplotype_input)
 
+    // Pipeline ends here after GATK_HAPLOTYPECALLER
+    // Final output is the GVCF files from GATK_HAPLOTYPECALLER
+    GATK_HAPLOTYPECALLER.out.gvcfs_interval.view { meta, interval, gvcf_path, tbi_path -> 
+        "GVCF file for sample ${meta.id}, interval ${interval}: ${gvcf_path}" 
+    }
+
+    // The following steps are commented out to truncate the pipeline
+    /*
     // --- Step 5: Prepare for Joint Genotyping (Create Sample Map per Interval) ---
     ch_gvcf_info = GATK_HAPLOTYPECALLER.out.gvcfs_interval
         .map { meta, interval, gvcf_path, tbi_path ->
@@ -125,7 +134,7 @@ workflow {
     // --- Workflow Output ---
     ch_final_vcfs = GATK_JOINT_GENOTYPE.out.filtered_vcf_interval
     ch_final_vcfs.view { interval, vcf, tbi -> "Final VCF for interval ${interval}: ${vcf}" }
-
+    */
 }
 
 // Workflow Completion Message
