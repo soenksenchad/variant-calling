@@ -7,8 +7,8 @@ if [ $# -ne 1 ]; then
     exit 1
 fi
 
-# Directory containing the fastq files
-FASTQ_DIR="$1"
+# Directory containing the fastq files - remove trailing slash if present
+FASTQ_DIR="${1%/}"
 SAMPLE_LIST="samples.txt"
 
 # Check if directory exists
@@ -39,7 +39,7 @@ for fastq_file in "$FASTQ_DIR"/*_R1.fastq.gz; do
     R1_FILES["$sample_id"]="$fastq_file"
     
     # Construct and check for R2 file
-    r2_file="${fastq_file/_R1.fastq.gz/_R2.fastq.gz}"
+    r2_file="${FASTQ_DIR}/$(basename "${fastq_file/_R1.fastq.gz/_R2.fastq.gz}")"
     if [ -f "$r2_file" ]; then
         R2_FILES["$sample_id"]="$r2_file"
     else
