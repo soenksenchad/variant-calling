@@ -1,0 +1,10 @@
+sample_id	read1	read2
+MK-01_DH_0011	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-01_DH_0011_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-01_DH_0011_R2.fastq.gz
+MK-03_DH_2473	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-03_DH_2473_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-03_DH_2473_R2.fastq.gz
+MK-02_DH_1394	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-02_DH_1394_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-02_DH_1394_R2.fastq.gz
+MK-01_DH_0617	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-01_DH_0617_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-01_DH_0617_R2.fastq.gz
+MK-02_DH_1528	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-02_DH_1528_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-02_DH_1528_R2.fastq.gz
+MK-03_DH_2229	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-03_DH_2229_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-03_DH_2229_R2.fastq.gz
+MK-01_DH_0729	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-01_DH_0729_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-01_DH_0729_R2.fastq.gz
+MK-03_DH_1734	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-03_DH_1734_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-03_DH_1734_R2.fastq.gz
+MK-02_DH_1581	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-02_DH_1581_R1.fastq.gz	/scratch/alpine/soenksen@colostate.edu/variant_calling/MK-02_DH_1581_R2.fastq.gz
